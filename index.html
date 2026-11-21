@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#101329" />
+  <title>Moonshot — a tiny space game</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+    :root { color-scheme: dark; --ink:#f6f3ff; --muted:#aaa9c3; --pink:#ff77bd; --mint:#98f4d4; --panel:rgba(18,20,44,.78); }
+    * { box-sizing:border-box }
+    body { margin:0; min-height:100vh; background:#101329; color:var(--ink); font-family:'Space Grotesk',sans-serif; overflow-x:hidden; }
+    body:before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.4; background-image:radial-gradient(#fff 1px,transparent 1px),radial-gradient(#c2c5ff 1px,transparent 1px); background-size:97px 97px,151px 151px; background-position:12px 20px,66px 71px; }
+    .shell { width:min(100% - 36px,1060px); margin:auto; padding:28px 0 36px; position:relative }
+    header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+    .brand { display:flex; gap:12px; align-items:center; font-weight:700; letter-spacing:-.04em; font-size:20px; }
+    .brand-mark { width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(145deg,#ff8ac7,#8a7aff);box-shadow:0 0 28px #ff77bd44;font-size:19px }
+    .tag { color:var(--muted);font:11px 'DM Mono',monospace;letter-spacing:.12em;text-transform:uppercase }
+    main { display:grid;grid-template-columns:minmax(0,1fr) 260px; gap:18px; align-items:stretch }
+    .stage { position:relative;overflow:hidden;min-height:560px;border:1px solid #ffffff20;border-radius:22px;background:linear-gradient(180deg,#242754 0%,#181b3d 62%,#101329 100%);box-shadow:0 24px 80px #05061188; }
+    canvas { display:block;width:100%;height:100%;position:absolute;inset:0 }
+    .overlay { position:absolute;inset:0;display:grid;place-items:center;padding:24px;background:linear-gradient(180deg,#11142a33,#11142a77); }
+    .card { max-width:390px;text-align:center;padding:30px 28px;border-radius:22px;background:var(--panel);backdrop-filter:blur(14px);border:1px solid #ffffff25;box-shadow:0 20px 60px #08091b77; }
+    .eyebrow { color:var(--mint);font:11px 'DM Mono',monospace;letter-spacing:.16em;text-transform:uppercase }
+    h1 { margin:12px 0 8px;font-size:clamp(36px,6vw,56px);line-height:.98;letter-spacing:-.075em }
+    .card p { color:#c3c2d7;line-height:1.55;font-size:14px;margin:0 0 20px }
+    button { border:0;border-radius:12px;padding:13px 20px;font:700 14px 'Space Grotesk',sans-serif;color:#19162a;background:linear-gradient(100deg,#ff8bc9,#ffd38c);cursor:pointer;box-shadow:0 8px 28px #ff77bd30;transition:transform .15s,filter .15s }
+    button:hover { transform:translateY(-2px);filter:brightness(1.08) } button:active { transform:translateY(0) }
+    .tiny { font:11px 'DM Mono',monospace;color:#9998b4;margin-top:15px }
+    .hud { position:absolute;top:18px;left:18px;right:18px;display:flex;justify-content:space-between;pointer-events:none }
+    .pill { padding:9px 12px;border:1px solid #ffffff22;background:#101329aa;backdrop-filter:blur(8px);border-radius:12px;font:12px 'DM Mono',monospace;color:#dfdff0 }
+    .pill b { color:var(--mint);font-weight:500 }
+    .side { display:flex;flex-direction:column;gap:14px }
+    .panel { border:1px solid #ffffff1d;background:var(--panel);border-radius:18px;padding:20px;box-shadow:0 12px 35px #08091b44 }
+    .panel h2 { font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:#c8c7dc;margin:0 0 15px }
+    .stat { display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid #ffffff12;font:12px 'DM Mono',monospace;color:var(--muted) }
+    .stat:last-child { border:0;padding-bottom:0 }.stat strong { font:600 18px 'Space Grotesk',sans-serif;color:var(--ink) }
+    .how { color:#b8b7cf;font-size:13px;line-height:1.65 }
+    .keys { display:flex;gap:6px;margin-top:12px;flex-wrap:wrap }
+    kbd { border:1px solid #ffffff27;background:#ffffff0b;color:#e4e3f2;border-radius:6px;padding:4px 7px;font:11px 'DM Mono',monospace }
+    .orb { width:70px;height:70px;margin:2px auto 16px;position:relative;border-radius:50%;background:radial-gradient(circle at 30% 30%,#ffe5a6,#ff9fc8 42%,#a06aff 75%);box-shadow:inset -12px -13px 20px #29205088,0 0 35px #cc8bff55 }
+    .orb:after { content:"";position:absolute;width:100px;height:20px;left:-15px;top:28px;border:3px solid #f4c6ff;border-left-color:#f4c6ff77;border-radius:50%;transform:rotate(-22deg); }
+    .foot { text-align:center;color:#777994;font:10px 'DM Mono',monospace;margin-top:20px;letter-spacing:.08em }
+    @media(max-width:760px) { .shell{width:min(100% - 24px,560px);padding-top:18px} main{grid-template-columns:1fr}.stage{min-height:58vh;min-height:560px}.side{display:grid;grid-template-columns:1fr 1fr}.side .panel:first-child{grid-column:1/-1} }
+    @media(max-width:420px) { .side{grid-template-columns:1fr}.side .panel:first-child{grid-column:auto}.stage{min-height:520px}.tag{font-size:9px} }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header><div class="brand"><span class="brand-mark">✦</span> MOONSHOT</div><div class="tag">a tiny game about big space</div></header>
+    <main>
+      <section class="stage" aria-label="Moonshot game area">
+        <canvas id="game" aria-label="Move your ship to catch stars and dodge asteroids"></canvas>
+        <div class="hud"><div class="pill">SCORE&nbsp; <b id="score">000</b></div><div class="pill">LIVES&nbsp; <b id="lives">♥ ♥ ♥</b></div></div>
+        <div class="overlay" id="overlay"><div class="card"><div class="orb"></div><div class="eyebrow" id="eyebrow">Ready for liftoff?</div><h1 id="headline">Moonshot</h1><p id="copy">Catch the stardust. Dodge the asteroids. How long can you last out there?</p><button id="start">Launch your ship&nbsp; →</button><div class="tiny">A QUICK LITTLE ARCADE GAME</div></div></div>
+      </section>
+      <aside class="side">
+        <section class="panel"><h2>Flight stats</h2><div class="stat"><span>THIS RUN</span><strong id="sideScore">0</strong></div><div class="stat"><span>BEST FLIGHT</span><strong id="best">0</strong></div><div class="stat"><span>STARDUST</span><strong id="dust">0</strong></div></section>
+        <section class="panel"><h2>How to play</h2><div class="how">Pilot your little rocket around the sky. Scoop up pink stars for points and keep clear of the chunky rocks.</div><div class="keys"><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>WASD</kbd></div><div class="how" style="margin-top:12px">On a phone? Drag your finger to steer.</div></section>
+        <section class="panel"><h2>Mission control</h2><div class="how">You have three lives. The longer you survive, the busier space gets. Good luck, captain ✨</div></section>
+      </aside>
+    </main>
+    <div class="foot">MADE FOR CURIOUS SPACE TRAVELERS · NO DOWNLOAD NEEDED</div>
+  </div>
+<script>
+(() => {
+  const canvas=document.querySelector('#game'), ctx=canvas.getContext('2d');
+  const overlay=document.querySelector('#overlay'), startBtn=document.querySelector('#start');
+  let W=0,H=0,dpr=1, running=false, score=0, lives=3, dust=0, best=+(localStorage.getItem('moonshot-best')||0), time=0, last=0, spawn=0;
+  let ship={x:0,y:0,vx:0,vy:0}, stars=[], rocks=[], sparks=[], keys={};
+  const scoreEl=document.querySelector('#score'), livesEl=document.querySelector('#lives');
+  document.querySelector('#best').textContent=best;
+  function resize(){const r=canvas.getBoundingClientRect();dpr=Math.min(devicePixelRatio||1,2);W=r.width;H=r.height;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);if(!running){ship.x=W/2;ship.y=H*.72}}
+  new ResizeObserver(resize).observe(canvas); resize();
+  const rand=(a,b)=>a+Math.random()*(b-a);
+  function start(){score=0;lives=3;dust=0;time=0;spawn=0;stars=[];rocks=[];sparks=[];ship={x:W/2,y:H*.72,vx:0,vy:0};running=true;overlay.hidden=true;updateHud();last=performance.now();requestAnimationFrame(loop)}
+  function end(){running=false;best=Math.max(best,score);localStorage.setItem('moonshot-best',best);document.querySelector('#best').textContent=best;document.querySelector('#eyebrow').textContent='Flight complete';document.querySelector('#headline').textContent='Nice flying!';document.querySelector('#copy').textContent=`You brought home ${score} stardust${score===1?'':'s'}. Ready to take another shot?`;startBtn.innerHTML='Fly again&nbsp; →';overlay.hidden=false}
+  function updateHud(){scoreEl.textContent=String(score).padStart(3,'0');document.querySelector('#sideScore').textContent=score;document.querySelector('#dust').textContent=dust;livesEl.textContent='♥ '.repeat(lives).trim()||'—'}
+  function burst(x,y,color,n=8){for(let i=0;i<n;i++)sparks.push({x,y,vx:rand(-2,2),vy:rand(-2,2),life:rand(18,34),color})}
+  function drawShip(){ctx.save();ctx.translate(ship.x,ship.y);ctx.rotate(ship.vx*.055);ctx.fillStyle='#ff9ed1';ctx.beginPath();ctx.moveTo(0,-17);ctx.lineTo(12,12);ctx.lineTo(0,7);ctx.lineTo(-12,12);ctx.closePath();ctx.fill();ctx.fillStyle='#bcf7ff';ctx.beginPath();ctx.arc(0,-2,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffc28e';ctx.beginPath();ctx.moveTo(-4,12);ctx.lineTo(0,rand(17,25));ctx.lineTo(4,12);ctx.fill();ctx.restore()}
+  function frame(dt){time+=dt;ctx.clearRect(0,0,W,H);
+    // distant planet and drifting stars
+    const pg=ctx.createRadialGradient(W*.78,H*.26,4,W*.78,H*.26,105);pg.addColorStop(0,'#8068d888');pg.addColorStop(1,'#7460c000');ctx.fillStyle=pg;ctx.beginPath();ctx.arc(W*.78,H*.26,105,0,Math.PI*2);ctx.fill();
+    for(let i=0;i<48;i++){let x=(i*137.4+22)%W,y=(i*83.2+time*(12+i%4)*.02)%H;ctx.globalAlpha=.25+(i%4)*.14;ctx.fillStyle='#fff';ctx.fillRect(x,y,i%8===0?2:1,i%8===0?2:1)}ctx.globalAlpha=1;
+    if(running){let ax=(keys.ArrowRight||keys.d?1:0)-(keys.ArrowLeft||keys.a?1:0), ay=(keys.ArrowDown||keys.s?1:0)-(keys.ArrowUp||keys.w?1:0);ship.vx=(ship.vx+ax*.42)*.88;ship.vy=(ship.vy+ay*.42)*.88;ship.x=Math.max(18,Math.min(W-18,ship.x+ship.vx));ship.y=Math.max(38,Math.min(H-18,ship.y+ship.vy));
+      spawn+=dt; if(spawn>Math.max(18,43-time*.12)){spawn=0;if(Math.random()<.72)stars.push({x:rand(20,W-20),y:-20,r:rand(7,11),vy:rand(1.5,2.7)+time*.006,rot:rand(0,6)});else rocks.push({x:rand(20,W-20),y:-25,r:rand(13,20),vy:rand(1.5,2.5)+time*.008,rot:rand(0,6),spin:rand(-.04,.04)})}
+      stars.forEach(o=>{o.y+=o.vy;o.rot+=.04;if(Math.hypot(o.x-ship.x,o.y-ship.y)<o.r+13){o.got=true;score+=10;dust++;burst(o.x,o.y,'#ff8dc7',9);updateHud()}});stars=stars.filter(o=>!o.got&&o.y<H+20);
+      rocks.forEach(o=>{o.y+=o.vy;o.rot+=o.spin;if(Math.hypot(o.x-ship.x,o.y-ship.y)<o.r+10){o.hit=true;lives--;burst(ship.x,ship.y,'#ffab83',16);ship.x=W/2;ship.y=H*.72;ship.vx=ship.vy=0;updateHud();if(lives<=0)end()}});rocks=rocks.filter(o=>!o.hit&&o.y<H+30);
+      drawShip();
+    }
+    stars.forEach(o=>{ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.rot);ctx.fillStyle='#ff92c8';ctx.shadowColor='#ff77bd';ctx.shadowBlur=16;ctx.beginPath();for(let j=0;j<10;j++){let a=j*Math.PI/5-Math.PI/2,r=j%2?o.r*.43:o.r;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r)}ctx.closePath();ctx.fill();ctx.restore()});
+    rocks.forEach(o=>{ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.rot);ctx.fillStyle='#8584a8';ctx.strokeStyle='#bebbd5';ctx.lineWidth=2;ctx.beginPath();for(let j=0;j<9;j++){let a=j*Math.PI*2/9,r=o.r*(j%2?.82:rand(.88,1.12));if(!j)ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r);else ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r)}ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle='#5d5d7c';ctx.beginPath();ctx.arc(-4,2,3,0,7);ctx.fill();ctx.restore()});
+    sparks.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.life--;ctx.globalAlpha=Math.max(0,p.life/34);ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,3,3)});sparks=sparks.filter(p=>p.life>0);ctx.globalAlpha=1;
+  }
+  function loop(now){if(!running)return;let dt=Math.min(2,(now-last)/16.67);last=now;frame(dt);requestAnimationFrame(loop)}
+  startBtn.addEventListener('click',start);
+  addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();keys[e.key]=true});addEventListener('keyup',e=>keys[e.key]=false);
+  let dragging=false;canvas.addEventListener('pointerdown',e=>{dragging=true;canvas.setPointerCapture(e.pointerId);steer(e)});canvas.addEventListener('pointermove',e=>{if(dragging)steer(e)});canvas.addEventListener('pointerup',()=>dragging=false);function steer(e){if(!running)return;let r=canvas.getBoundingClientRect();ship.x=e.clientX-r.left;ship.y=e.clientY-r.top;ship.vx=ship.vy=0}
+  function idle(){if(running)return;frame(0);requestAnimationFrame(idle)}idle();
+})();
+</script>
+</body>
+</html>
