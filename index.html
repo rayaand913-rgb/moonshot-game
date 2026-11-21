@@ -29,7 +29,7 @@
     .tiny { font:11px 'DM Mono',monospace;color:#9998b4;margin-top:15px }
     .hud { position:absolute;top:18px;left:18px;right:18px;display:flex;justify-content:space-between;pointer-events:none }
     .pill { padding:9px 12px;border:1px solid #ffffff22;background:#101329aa;backdrop-filter:blur(8px);border-radius:12px;font:12px 'DM Mono',monospace;color:#dfdff0 }
-    .pill b { color:var(--mint);font-weight:500 }
+    .pill b { color:var(--mint);font-weight:500 } .pause-btn { pointer-events:auto;padding:9px 12px;border:1px solid #ffffff2c;background:#101329cc;color:#f0eefc;border-radius:10px;font:11px 'DM Mono',monospace;box-shadow:none } .pause-btn:hover { background:#25294e;filter:none }
     .side { display:flex;flex-direction:column;gap:14px }
     .panel { border:1px solid #ffffff1d;background:var(--panel);border-radius:18px;padding:20px;box-shadow:0 12px 35px #08091b44 }
     .panel h2 { font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:#c8c7dc;margin:0 0 15px }
@@ -51,7 +51,7 @@
     <main>
       <section class="stage" aria-label="Moonshot game area">
         <canvas id="game" aria-label="Move your ship to catch stars and dodge asteroids"></canvas>
-        <div class="hud"><div class="pill">SCORE&nbsp; <b id="score">000</b></div><div class="pill">LIVES&nbsp; <b id="lives">♥ ♥ ♥</b></div></div>
+        <div class="hud"><div class="pill">SCORE&nbsp; <b id="score">000</b></div><button class="pause-btn" id="pause" aria-label="Pause game" hidden>Pause</button><div class="pill">LIVES&nbsp; <b id="lives">♥ ♥ ♥</b></div></div>
         <div class="overlay" id="overlay"><div class="card"><div class="orb"></div><div class="eyebrow" id="eyebrow">Ready for liftoff?</div><h1 id="headline">Moonshot</h1><p id="copy">Catch the stardust. Dodge the asteroids. How long can you last out there?</p><button id="start">Launch your ship&nbsp; →</button><div class="tiny">A QUICK LITTLE ARCADE GAME</div></div></div>
       </section>
       <aside class="side">
@@ -66,15 +66,15 @@
 (() => {
   const canvas=document.querySelector('#game'), ctx=canvas.getContext('2d');
   const overlay=document.querySelector('#overlay'), startBtn=document.querySelector('#start');
-  let W=0,H=0,dpr=1, running=false, score=0, lives=3, dust=0, best=+(localStorage.getItem('moonshot-best')||0), time=0, last=0, spawn=0;
+  let W=0,H=0,dpr=1, running=false, paused=false, score=0, lives=3, dust=0, best=+(localStorage.getItem('moonshot-best')||0), time=0, last=0, spawn=0;
   let ship={x:0,y:0,vx:0,vy:0}, stars=[], rocks=[], sparks=[], keys={};
-  const scoreEl=document.querySelector('#score'), livesEl=document.querySelector('#lives');
+  const scoreEl=document.querySelector('#score'), livesEl=document.querySelector('#lives'), pauseBtn=document.querySelector('#pause');
   document.querySelector('#best').textContent=best;
   function resize(){const r=canvas.getBoundingClientRect();dpr=Math.min(devicePixelRatio||1,2);W=r.width;H=r.height;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);if(!running){ship.x=W/2;ship.y=H*.72}}
   new ResizeObserver(resize).observe(canvas); resize();
   const rand=(a,b)=>a+Math.random()*(b-a);
-  function start(){score=0;lives=3;dust=0;time=0;spawn=0;stars=[];rocks=[];sparks=[];ship={x:W/2,y:H*.72,vx:0,vy:0};running=true;overlay.hidden=true;overlay.style.display='none';updateHud();last=performance.now();requestAnimationFrame(loop)}
-  function end(){running=false;best=Math.max(best,score);localStorage.setItem('moonshot-best',best);document.querySelector('#best').textContent=best;document.querySelector('#eyebrow').textContent='Flight complete';document.querySelector('#headline').textContent='Nice flying!';document.querySelector('#copy').textContent=`You brought home ${score} stardust${score===1?'':'s'}. Ready to take another shot?`;startBtn.innerHTML='Fly again&nbsp; →';overlay.hidden=false;overlay.style.display='grid'}
+  function start(){score=0;lives=3;dust=0;time=0;spawn=0;stars=[];rocks=[];sparks=[];ship={x:W/2,y:H*.72,vx:0,vy:0};running=true;paused=false;pauseBtn.hidden=false;pauseBtn.textContent='Pause';overlay.hidden=true;overlay.style.display='none';updateHud();last=performance.now();requestAnimationFrame(loop)}
+  function pause(){if(!running||paused)return;paused=true;document.querySelector('#eyebrow').textContent='Flight paused';document.querySelector('#headline').textContent='Take a breather';document.querySelector('#copy').textContent='Your ship is safe. Resume when you are ready.';startBtn.innerHTML='Resume flight&nbsp; →';pauseBtn.textContent='Resume';overlay.hidden=false;overlay.style.display='grid'}function resume(){if(!running||!paused)return;paused=false;overlay.hidden=true;overlay.style.display='none';pauseBtn.textContent='Pause';last=performance.now();requestAnimationFrame(loop)}function togglePause(){if(paused)resume();else pause()}function end(){running=false;paused=false;pauseBtn.hidden=true;best=Math.max(best,score);localStorage.setItem('moonshot-best',best);document.querySelector('#best').textContent=best;document.querySelector('#eyebrow').textContent='Flight complete';document.querySelector('#headline').textContent='Nice flying!';document.querySelector('#copy').textContent=`You brought home ${score} stardust${score===1?'':'s'}. Ready to take another shot?`;startBtn.innerHTML='Fly again&nbsp; →';overlay.hidden=false;overlay.style.display='grid'}
   function updateHud(){scoreEl.textContent=String(score).padStart(3,'0');document.querySelector('#sideScore').textContent=score;document.querySelector('#dust').textContent=dust;livesEl.textContent='♥ '.repeat(lives).trim()||'—'}
   function burst(x,y,color,n=8){for(let i=0;i<n;i++)sparks.push({x,y,vx:rand(-2,2),vy:rand(-2,2),life:rand(18,34),color})}
   function drawShip(){ctx.save();ctx.translate(ship.x,ship.y);ctx.rotate(ship.vx*.055);ctx.fillStyle='#ff9ed1';ctx.beginPath();ctx.moveTo(0,-17);ctx.lineTo(12,12);ctx.lineTo(0,7);ctx.lineTo(-12,12);ctx.closePath();ctx.fill();ctx.fillStyle='#bcf7ff';ctx.beginPath();ctx.arc(0,-2,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffc28e';ctx.beginPath();ctx.moveTo(-4,12);ctx.lineTo(0,rand(17,25));ctx.lineTo(4,12);ctx.fill();ctx.restore()}
@@ -92,8 +92,8 @@
     rocks.forEach(o=>{ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.rot);ctx.fillStyle='#8584a8';ctx.strokeStyle='#bebbd5';ctx.lineWidth=2;ctx.beginPath();for(let j=0;j<9;j++){let a=j*Math.PI*2/9,r=o.r*(j%2?.82:rand(.88,1.12));if(!j)ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r);else ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r)}ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle='#5d5d7c';ctx.beginPath();ctx.arc(-4,2,3,0,7);ctx.fill();ctx.restore()});
     sparks.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.life--;ctx.globalAlpha=Math.max(0,p.life/34);ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,3,3)});sparks=sparks.filter(p=>p.life>0);ctx.globalAlpha=1;
   }
-  function loop(now){if(!running)return;let dt=Math.min(2,(now-last)/16.67);last=now;frame(dt);requestAnimationFrame(loop)}
-  startBtn.addEventListener('click',start);
+  function loop(now){if(!running||paused)return;let dt=Math.min(2,(now-last)/16.67);last=now;frame(dt);requestAnimationFrame(loop)}
+  startBtn.addEventListener('click',()=>{if(running&&paused)resume();else start()});pauseBtn.addEventListener('click',togglePause);
   addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();keys[e.key]=true});addEventListener('keyup',e=>keys[e.key]=false);
   let dragging=false;canvas.addEventListener('pointerdown',e=>{dragging=true;canvas.setPointerCapture(e.pointerId);steer(e)});canvas.addEventListener('pointermove',e=>{if(dragging)steer(e)});canvas.addEventListener('pointerup',()=>dragging=false);function steer(e){if(!running)return;let r=canvas.getBoundingClientRect();ship.x=e.clientX-r.left;ship.y=e.clientY-r.top;ship.vx=ship.vy=0}
   function idle(){if(running)return;frame(0);requestAnimationFrame(idle)}idle();
